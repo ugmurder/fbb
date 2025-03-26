@@ -98,31 +98,38 @@
             };
 
             // 发送消息到代理接口
-            const sendMessage = async () => {
-                const text = userInput.value.trim();
-                if (!text) return;
+           // 在index.html的sendMessage函数中更新：
+const sendMessage = async () => {
+  const text = userInput.value.trim();
+  if (!text) return;
 
-                addMessage(text, true);
-                userInput.value = '';
+  addMessage(text, true);
+  userInput.value = '';
+  
+  try {
+    const response = await fetch('/api/deepseek-proxy', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ 
+        message: text 
+      })
+    });
 
-                try {
-                    const response = await fetch('/.netlify/functions/deepseek-proxy', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: text })
-                    });
-                    const data = await response.json();
-                    addMessage(data.reply, false);
-                } catch (error) {
-                    addMessage("出错咯，等哈儿再试嘛~", false);
-                }
-            };
-
-            sendBtn.addEventListener('click', sendMessage);
-            userInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
-        });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || '未知错误');
+    }
+    
+    addMessage(data.reply, false);
+  } catch (error) {
+    addMessage(`出错咯: ${error.message}`, false);
+    console.error('请求失败:', error);
+  }
+};
     </script>
 </body>
 </html>
