@@ -83,53 +83,72 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const chatMessages = document.getElementById('chat-messages');
-            const userInput = document.getElementById('user-input');
-            const sendBtn = document.getElementById('send-btn');
+      document.addEventListener('DOMContentLoaded', function() {
+    const chatMessages = document.getElementById('chat-messages');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
 
-            // 添加消息到聊天框
-            const addMessage = (text, isUser) => {
-                const msg = document.createElement('div');
-                msg.className = `message-bubble ${isUser ? 'user-message' : 'bot-message'}`;
-                msg.textContent = text;
-                chatMessages.appendChild(msg);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            };
+    // 添加消息到聊天框
+    function addMessage(content, isUser) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = content;
+        
+        const time = document.createElement('div');
+        time.className = 'message-time';
+        time.textContent = getCurrentTime();
+        
+        messageDiv.appendChild(bubble);
+        messageDiv.appendChild(time);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
-            // 发送消息到代理接口
-           // 在index.html的sendMessage函数中更新：
-const sendMessage = async () => {
-  const text = userInput.value.trim();
-  if (!text) return;
+    // 获取当前时间
+    function getCurrentTime() {
+        const now = new Date();
+        return `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+    }
 
-  addMessage(text, true);
-  userInput.value = '';
-  
-  try {
-    const response = await fetch('/api/deepseek-proxy', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ 
-        message: text 
-      })
+    // 发送消息到代理接口
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+        
+        addMessage(text, true);
+        userInput.value = '';
+        
+        try {
+            const response = await fetch('/api/deepseek-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`请求失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            addMessage(data.reply || "莫得回应...", false);
+        } catch (error) {
+            addMessage(`出错咯: ${error.message}`, false);
+            console.error('API Error:', error);
+        }
+    }
+
+    // 事件监听
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') sendMessage();
     });
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || '未知错误');
-    }
-    
-    addMessage(data.reply, false);
-  } catch (error) {
-    addMessage(`出错咯: ${error.message}`, false);
-    console.error('请求失败:', error);
-  }
-};
-    </script>
+    // 初始欢迎语
+    addMessage('我是冯宝宝，有啥子事就问嘛~', false);
+});
+</script>
 </body>
 </html>
