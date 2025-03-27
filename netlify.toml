@@ -1,9 +1,0 @@
-[build]
-  command = "npm install && echo 'Dependencies installed'"
-  publish = "."
-  functions = "netlify/functions"
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
