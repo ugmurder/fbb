@@ -1,0 +1,175 @@
+<?php
+/**
+ * 新闻头条 - PHP实现
+ * 使用聚合数据(Juhe)新闻头条API
+ */
+
+// 配置信息
+$config = [
+    'apiKey' => 'YOUR_API_KEY', // 替换为你的聚合数据API Key
+    'apiUrl' => 'http://v.juhe.cn/toutiao/index',
+    'defaultType' => 'top', // 默认新闻类型
+    'pageSize' => 20 // 每页新闻数量
+];
+
+// 获取当前新闻类型 (从URL参数或使用默认值)
+$currentType = isset($_GET['type']) ? $_GET['type'] : $config['defaultType'];
+$searchKeyword = isset($_GET['search']) ? trim($_GET['search']) : '';
+
+// 支持的新闻类型
+$newsTypes = [
+    'top' => '头条',
+    'shehui' => '社会',
+    'guonei' => '国内',
+    'guoji' => '国际',
+    'yule' => '娱乐',
+    'tiyu' => '体育',
+    'keji' => '科技'
+];
+
+// 获取新闻数据
+function fetchNews($type, $apiKey, $apiUrl) {
+    $params = [
+        'key' => $apiKey,
+        'type' => $type
+    ];
+    
+    $url = $apiUrl . '?' . http_build_query($params);
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HEADER, false);
+    
+    // 如果是HTTPS请求
+    if (strpos($apiUrl, 'https://') === 0) {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    }
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode == 200) {
+        $data = json_decode($response, true);
+        if ($data && $data['error_code'] === 0) {
+            return $data['result']['data'];
+        }
+    }
+    
+    return null;
+}
+
+// 搜索新闻
+function searchNews($newsData, $keyword) {
+    if (empty($keyword) return $newsData;
+    
+    $filtered = array_filter($newsData, function($news) use ($keyword) {
+        return stripos($news['title'], $keyword) !== false || 
+               (isset($news['author']) && stripos($news['author'], $keyword) !== false) ||
+               (isset($news['category']) && stripos($news['category'], $keyword) !== false);
+    });
+    
+    return array_values($filtered);
+}
+
+// 获取新闻数据
+$newsData = fetchNews($currentType, $config['apiKey'], $config['apiUrl']);
+
+// 如果有搜索关键词，过滤新闻
+if ($searchKeyword && $newsData) {
+    $newsData = searchNews($newsData, $searchKeyword);
+}
+
+// 格式化日期
+function formatDate($dateString) {
+    if (empty($dateString)) return '未知日期';
+    
+    $date = new DateTime($dateString);
+    return $date->format('Y-m-d H:i');
+}
+?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新闻头条 - 聚合数据API示例</title>
+    <!-- 引入CSS文件 -->
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入Font Awesome图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <a href="index.php">新闻头条</a>
+            </div>
+            <nav class="nav">
+                <ul>
+                    <?php foreach ($newsTypes as $type => $name): ?>
+                        <li>
+                            <a href="index.php?type=<?= $type ?>" 
+                               class="<?= $currentType === $type ? 'active' : '' ?>">
+                                <?= $name ?>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </nav>
+            <div class="search-box">
+                <form action="index.php" method="get">
+                    <input type="hidden" name="type" value="<?= $currentType ?>">
+                    <input type="text" name="search" placeholder="搜索新闻..." 
+                           value="<?= htmlspecialchars($searchKeyword) ?>">
+                    <button type="submit"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="main">
+        <div class="container">
+            <div class="news-container">
+                <?php if (empty($newsData)): ?>
+                    <div class="loading">
+                        <i class="fas fa-exclamation-circle"></i> 没有获取到新闻数据
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($newsData as $news): ?>
+                        <div class="news-card">
+                            <img src="<?= htmlspecialchars($news['thumbnail_pic_s'] ?? 'https://via.placeholder.com/300x180?text=No+Image') ?>" 
+                                 alt="<?= htmlspecialchars($news['title']) ?>" 
+                                 class="news-image"
+                                 onerror="this.src='https://via.placeholder.com/300x180?text=Image+Error'">
+                            <div class="news-content">
+                                <h3 class="news-title"><?= htmlspecialchars($news['title']) ?></h3>
+                                <p class="news-desc">
+                                    <?= htmlspecialchars($news['author'] ?? '未知作者') ?> | 
+                                    <?= formatDate($news['date'] ?? '') ?>
+                                </p>
+                                <div class="news-meta">
+                                    <span><?= htmlspecialchars($news['category'] ?? '未分类') ?></span>
+                                    <span class="news-source"><?= htmlspecialchars($news['realtype'] ?? '未知来源') ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>© <?= date('Y') ?> 新闻头条 - 使用聚合数据API构建</p>
+            <p>数据来源: <a href="https://www.juhe.cn/" target="_blank">聚合数据</a></p>
+        </div>
+    </footer>
+</body>
+</html>
