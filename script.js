@@ -1,6 +1,6 @@
 // 配置信息
 const config = {
-    apiKey: '232857405175b5a3303b8f5755d19aa0', // 替换为你的聚合数据API Key
+    apiKey: 'YOUR_API_KEY', // 替换为你的聚合数据API Key
     apiUrl: 'http://v.juhe.cn/toutiao/index',
     defaultType: 'top' // 默认新闻类型
 };
